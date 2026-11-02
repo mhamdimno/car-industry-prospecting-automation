@@ -1,0 +1,179 @@
+{
+  "name": "Car Industry Prospecting Automation",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Apify + Airtable prospecting workflow for automotive leads"
+  },
+  "nodes": [
+    {
+      "id": "trigger-form",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2,
+      "position": [240, 260],
+      "parameters": {
+        "operation": "create",
+        "formTitle": "Car Lead Submission",
+        "formDescription": "Submit a prospecting request for automotive leads",
+        "fields": [
+          {
+            "name": "industry",
+            "type": "text",
+            "required": true,
+            "placeholder": "Automotive"
+          },
+          {
+            "name": "country",
+            "type": "text",
+            "required": true,
+            "placeholder": "Saudi Arabia"
+          },
+          {
+            "name": "city",
+            "type": "text",
+            "required": false,
+            "placeholder": "Riyadh"
+          },
+          {
+            "name": "keyword",
+            "type": "text",
+            "required": true,
+            "placeholder": "car dealership"
+          }
+        ]
+      }
+    },
+    {
+      "id": "apify-run",
+      "name": "Run an Actor and get dataset",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [520, 260],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/{{YourActorName}}/runs?token={{$env.APIFY_API_TOKEN}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  keyword: $json.keyword,\n  country: $json.country,\n  city: $json.city,\n  industry: $json.industry\n} }}",
+        "options": {
+          "response": {
+            "fullResponse": true
+          }
+        }
+      }
+    },
+    {
+      "id": "wait-node",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [760, 260],
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "code-node",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1010, 260],
+      "parameters": {
+        "language": "javascript",
+        "jsCode": "const rows = $json.data || $json.dataset || [] || [];
+
+const mapped = rows.map((item) => ({
+  name: item.name || item.fullName || '',
+  company: item.company || item.companyName || '',
+  jobTitle: item.jobTitle || item.position || item.role || '',
+  email: item.email || '',
+  phone: item.phone || item.mobile || '',
+  website: item.website || item.companyWebsite || '',
+  linkedin: item.linkedin || item.linkedinUrl || '',
+  country: item.country || $json.country || '',
+  city: item.city || $json.city || '',
+  industry: item.industry || $json.industry || 'Automotive',
+  source: 'Apify + n8n',
+  leadStatus: 'New',
+  createdAt: new Date().toISOString()
+}));
+
+return mapped;"
+      }
+    },
+    {
+      "id": "airtable-create",
+      "name": "Create a record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [1280, 260],
+      "parameters": {
+        "operation": "create",
+        "baseId": "{{ $env.AIRTABLE_BASE_ID }}",
+        "table": "Prospects",
+        "columns": {
+          "name": "={{ $json.name }}",
+          "company": "={{ $json.company }}",
+          "jobTitle": "={{ $json.jobTitle }}",
+          "email": "={{ $json.email }}",
+          "phone": "={{ $json.phone }}",
+          "website": "={{ $json.website }}",
+          "linkedin": "={{ $json.linkedin }}",
+          "country": "={{ $json.country }}",
+          "city": "={{ $json.city }}",
+          "industry": "={{ $json.industry }}",
+          "source": "={{ $json.source }}",
+          "leadStatus": "={{ $json.leadStatus }}",
+          "createdAt": "={{ $json.createdAt }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "trigger-form": {
+      "main": [
+        [
+          {
+            "node": "apify-run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apify-run": {
+      "main": [
+        [
+          {
+            "node": "wait-node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-node": {
+      "main": [
+        [
+          {
+            "node": "code-node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-node": {
+      "main": [
+        [
+          {
+            "node": "airtable-create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
