@@ -1,38 +1,48 @@
 # Car Industry Prospecting Automation
 
-This project automates finding people working in the automotive industry, collecting their data with Apify, and organizing it in Airtable through n8n.
+Automation project for finding automotive industry leads, collecting their data with Apify, and saving them into Airtable using n8n.
 
-## Overview
+## What this project does
 
-The workflow follows this logic:
+This workflow:
 
-1. A form is submitted
-2. n8n triggers the automation
-3. An Apify Actor runs to collect lead data
-4. n8n waits for the dataset to finish
-5. JavaScript cleans and maps data fields
-6. Airtable creates a new record
+1. Receives a lead search request from a form
+2. Runs an Apify Actor to collect automotive-related contacts or company data
+3. Waits for the scraper to finish
+4. Normalizes and cleans the results with JavaScript
+5. Creates records in Airtable
 
-## Included workflow
-
-The repository includes a starter workflow template for n8n based on the image provided:
-
-- `n8n/car-industry-prospecting-workflow.json`
-
-## Recommended stack
+## Stack
 
 - n8n
 - Apify
 - Airtable
+- JavaScript for data transformation
 
-## Typical use case
+## Repository structure
 
-- Search for automotive companies or professionals
-- Pull contact and company details
-- Enrich data with job title, company, website, LinkedIn, location
-- Save candidates in Airtable for outreach
+```text
+.
+├── README.md
+├── .env.example
+├── docs/
+│   └── automation-flow.md
+├── n8n/
+│   └── car-industry-prospecting-workflow.json
+└── .gitignore
+```
 
-## Suggested Airtable fields
+## Workflow logic
+
+```text
+Form Trigger
+  -> Run Apify Actor
+  -> Wait for completion
+  -> JavaScript data normalization
+  -> Airtable create record
+```
+
+## Typical fields collected
 
 - Name
 - Company
@@ -49,51 +59,81 @@ The repository includes a starter workflow template for n8n based on the image p
 - Notes
 - Created At
 
-## Example workflow logic
+## Recommended Airtable table
 
-```text
-Form Trigger
-  -> Run Apify Actor
-  -> Wait for dataset
-  -> JavaScript normalization
-  -> Airtable create record
+Table name: `Prospects`
+
+Suggested columns:
+
+- Name
+- Company
+- Job Title
+- Email
+- Phone
+- Website
+- LinkedIn
+- Country
+- City
+- Industry
+- Source
+- Lead Status
+- Notes
+- Created At
+
+## Sample data mapping
+
+```javascript
+const rows = Array.isArray($json) ? $json : ($json.data || $json.dataset || []);
+
+return rows.map((item) => ({
+  name: item.name || item.fullName || '',
+  company: item.company || item.companyName || '',
+  jobTitle: item.jobTitle || item.position || item.role || '',
+  email: item.email || '',
+  phone: item.phone || item.mobile || '',
+  website: item.website || item.companyWebsite || '',
+  linkedin: item.linkedin || item.linkedinUrl || '',
+  country: item.country || '',
+  city: item.city || '',
+  industry: item.industry || 'Automotive',
+  source: 'Apify + n8n',
+  leadStatus: 'New',
+  notes: item.notes || '',
+  createdAt: new Date().toISOString(),
+}));
 ```
-
-## Setup steps
-
-1. Import the workflow JSON file into n8n.
-2. Configure your Apify API token and actor.
-3. Set Airtable credentials and base ID.
-4. Update the JavaScript mapping node to match your scraped output.
-5. Test with one lead.
-6. Scale to a form or schedule.
 
 ## Environment variables
 
-Example variables:
+Create a `.env` file using `.env.example`:
 
 ```bash
 APIFY_API_TOKEN=your_apify_token
-AIRTABLE_BASE_ID=appXXXXXXXXXXXX
+APIFY_ACTOR_ID=your_apify_actor
 AIRTABLE_API_KEY=your_airtable_key
+AIRTABLE_BASE_ID=appxxxxxxxxxxxxx
 ```
 
-## Project structure
+## Setup instructions
 
-```text
-.
-├── README.md
-├── docs/
-│   └── airtable-schema.md
-├── n8n/
-│   └── car-industry-prospecting-workflow.json
-└── .gitignore
-```
+1. Import `n8n/car-industry-prospecting-workflow.json` into n8n.
+2. Configure the Form Trigger or replace it with your own trigger.
+3. Add your Apify credentials and actor ID.
+4. Add Airtable credentials and base ID.
+5. Adjust the JavaScript node to match your Apify output.
+6. Run a test submission.
+7. Review data in Airtable and refine filtering.
 
 ## Notes
 
-This is a starter implementation. You can adapt the Apify actor and JavaScript node to your actual data source, platform, and lead qualification logic.
+This is a starter workflow. In production you may want to add:
 
-## License
+- duplicate detection
+- lead qualification rules
+- follow-up reminders
+- enrichment steps using Clearbit, email validation, or search APIs
+- scheduled scraping jobs
 
-This repository is provided as a starter project for automation workflows.
+## Goal
+
+This project is designed to help automate automotive lead generation and lead organization for outreach campaigns.
